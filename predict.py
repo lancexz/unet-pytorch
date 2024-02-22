@@ -23,7 +23,7 @@ if __name__ == "__main__":
     #   'export_onnx'       表示将模型导出为onnx，需要pytorch1.7.1以上。
     #   'predict_onnx'      表示利用导出的onnx模型进行预测，相关参数的修改在unet.py_346行左右处的Unet_ONNX
     #----------------------------------------------------------------------------------------------------------#
-    mode = "predict"
+    mode = "dir_predict"
     #-------------------------------------------------------------------------#
     #   count               指定了是否进行目标的像素点计数（即面积）与比例计算
     #   name_classes        区分的种类，和json_to_dataset里面的一样，用于打印种类和数量
@@ -54,7 +54,7 @@ if __name__ == "__main__":
     #   test_interval和fps_image_path仅在mode='fps'有效
     #----------------------------------------------------------------------------------------------------------#
     test_interval = 100
-    fps_image_path  = "img/street.jpg"
+    fps_image_path  = "img/0.png"
     #-------------------------------------------------------------------------#
     #   dir_origin_path     指定了用于检测的图片的文件夹路径
     #   dir_save_path       指定了检测完图片的保存路径
@@ -147,7 +147,7 @@ if __name__ == "__main__":
         cv2.destroyAllWindows()
 
     elif mode == "fps":
-        img = Image.open('img/street.jpg')
+        img = Image.open('img/0.png')
         tact_time = unet.get_FPS(img, test_interval)
         print(str(tact_time) + ' seconds, ' + str(1/tact_time) + 'FPS, @batch_size 1')
         
@@ -156,14 +156,28 @@ if __name__ == "__main__":
         from tqdm import tqdm
 
         img_names = os.listdir(dir_origin_path)
+        t21, t32, t43 = 0, 0, 0
+        bFirstRound = True  # Skip the first time
         for img_name in tqdm(img_names):
             if img_name.lower().endswith(('.bmp', '.dib', '.png', '.jpg', '.jpeg', '.pbm', '.pgm', '.ppm', '.tif', '.tiff')):
                 image_path  = os.path.join(dir_origin_path, img_name)
                 image       = Image.open(image_path)
-                r_image     = unet.detect_image(image)
+                r_image, t21_, t32_, t43_     = unet.detect_image(image)
+                if not bFirstRound:
+                    t21 += t21_
+                    t32 += t32_
+                    t43 += t43_
                 if not os.path.exists(dir_save_path):
                     os.makedirs(dir_save_path)
-                r_image.save(os.path.join(dir_save_path, img_name))
+                r_image.save(os.path.join(dir_save_path, img_name.replace('jpg', 'png')))
+                bFirstRound = False
+        
+        # get average time
+        t21 = t21 / (len(img_names) - 1)
+        t32 = t32 / (len(img_names) - 1)
+        t43 = t43 / (len(img_names) - 1)
+        print('t21: %.5f, t32: %.5f, t43: %.5f, t: %4f' % (t21, t32, t43, t21+t32+t43))
+
     elif mode == "export_onnx":
         unet.convert_to_onnx(simplify, onnx_save_path)
                 

@@ -27,7 +27,7 @@ class Unet(object):
         #   验证集损失较低不代表miou较高，仅代表该权值在验证集上泛化性能较好。
         #-------------------------------------------------------------------#
         # "model_path"    : 'model_data/unet_vgg_voc.pth',
-        "model_path"    : 'model_data/exp2/best_epoch_weights.pth',
+        "model_path"    : 'model_data/exp3/best_epoch_weights.pth',
         #--------------------------------#
         #   所需要区分的类的个数+1
         #--------------------------------#
@@ -47,7 +47,7 @@ class Unet(object):
         #   mix_type = 1的时候代表仅保留生成的图
         #   mix_type = 2的时候代表仅扣去背景，仅保留原图中的目标
         #-------------------------------------------------#
-        "mix_type"      : 0,
+        "mix_type"      : 1,
         #--------------------------------#
         #   是否使用Cuda
         #   没有GPU可以设置成False
@@ -66,7 +66,7 @@ class Unet(object):
         #   画框设置不同的颜色
         #---------------------------------------------------#
         if self.num_classes <= 21:
-            self.colors = [(0, 0, 0), [16, 255, 16], [16, 255, 255], [16, 32, 255], [255, 255, 16]]
+            self.colors = [(32, 32, 32), [16, 255, 16], [16, 255, 255], [16, 32, 255], [255, 255, 16]] # RGB
             # BGR to RGB
             self.colors = [list(reversed(i)) for i in self.colors]
                             # [(0, 0, 0), (128, 0, 0), (0, 128, 0), (128, 128, 0), (0, 0, 128), (128, 0, 128), (0, 128, 128), 
@@ -103,6 +103,7 @@ class Unet(object):
     #   检测图片
     #---------------------------------------------------#
     def detect_image(self, image, count=False, name_classes=None):
+        t1 = time.time()
         #---------------------------------------------------------#
         #   在这里将图像转换成RGB图像，防止灰度图在预测时报错。
         #   代码仅仅支持RGB图像的预测，所有其它类型的图像都会转化成RGB
@@ -129,6 +130,7 @@ class Unet(object):
             if self.cuda:
                 images = images.cuda()
                 
+            t2 = time.time()
             #---------------------------------------------------#
             #   图片传入网络进行预测
             #---------------------------------------------------#
@@ -142,6 +144,7 @@ class Unet(object):
             #--------------------------------------#
             pr = pr[int((self.input_shape[0] - nh) // 2) : int((self.input_shape[0] - nh) // 2 + nh), \
                     int((self.input_shape[1] - nw) // 2) : int((self.input_shape[1] - nw) // 2 + nw)]
+            t3 = time.time()
             #---------------------------------------------------#
             #   进行图片的resize
             #---------------------------------------------------#
@@ -203,8 +206,8 @@ class Unet(object):
             #   将新图片转换成Image的形式
             #------------------------------------------------#
             image = Image.fromarray(np.uint8(seg_img))
-        
-        return image
+        t4 = time.time()
+        return image, t2-t1, t3-t2, t4-t3
 
     def get_FPS(self, image, test_interval):
         #---------------------------------------------------------#
